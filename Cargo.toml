@@ -1,0 +1,17 @@
+[package]
+name = "simple-16"
+version = "0.1.0"
+authors = ["Zac Burns <That3Percent@gmail.com>"]
+edition = "2018"
+
+description = "Simple-16 Integer Compression"
+repository = "https://github.com/That3Percent/simple-16"
+keywords = ["simple-family", "binary"]
+categories = ["compression", "parser-implementations"]
+license = "MIT"
+
+[badges]
+maintenance = { status = "actively-developed"}
+
+
+[dependencies]
