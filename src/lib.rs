@@ -1,5 +1,6 @@
 use firestorm::profile_fn;
-use std::convert::TryInto;
+use std::convert::{Infallible, TryInto};
+use std::hint::unreachable_unchecked;
 
 const BITS: [[u32; 28]; 16] = [
     [
@@ -54,12 +55,13 @@ const BITS: [[u32; 28]; 16] = [
 
 const COUNTS: [usize; 16] = [28, 21, 21, 21, 14, 9, 8, 7, 6, 6, 5, 5, 4, 3, 2, 1];
 
-pub struct ValueOutOfRange(u32);
+pub struct ValueOutOfRange;
 
 macro_rules! impl_simple {
-    ($T:ty, $MAX:expr) => {
+    ($T:ty, $MAX:expr, $Error:ty, $ErrorCtor:expr) => {
         impl Simple16 for $T {
-            fn compress(values: &[Self]) -> Result<(u32, usize), ValueOutOfRange> {
+            type Error = $Error;
+            fn compress(values: &[Self]) -> Result<(u32, usize), Self::Error> {
                 for i in 0..($MAX as u32) {
                     let mut value = i << 28;
                     let count = COUNTS[i as usize].min(values.len());
@@ -78,11 +80,10 @@ macro_rules! impl_simple {
                         return Ok((value, j));
                     }
                 }
-                // TODO: This is not necessarily the value that is out of range.
-                Err(ValueOutOfRange(values[0] as u32))
+                $ErrorCtor
             }
 
-            fn consume(values: &[Self]) -> Result<usize, ValueOutOfRange> {
+            fn consume(values: &[Self]) -> Result<usize, Self::Error> {
                 for i in 0..($MAX as usize) {
                     let count = COUNTS[i].min(values.len());
 
@@ -97,24 +98,30 @@ macro_rules! impl_simple {
                         return Ok(j);
                     }
                 }
-                // TODO: This is not necessarily the value that is out of range.
-                Err(ValueOutOfRange(values[0] as u32))
+                $ErrorCtor
             }
         }
     };
 }
 
-// TODO: (Performance) Express that some of these are infallible
-impl_simple!(u32, 16);
-impl_simple!(u16, 16);
-impl_simple!(u8, 14);
-
-pub trait Simple16: Sized {
-    fn consume(values: &[Self]) -> Result<usize, ValueOutOfRange>;
-    fn compress(values: &[Self]) -> Result<(u32, usize), ValueOutOfRange>;
+impl From<Infallible> for ValueOutOfRange {
+    #[inline(always)]
+    fn from(_: Infallible) -> Self {
+        unsafe { unreachable_unchecked() }
+    }
 }
 
-pub fn calculate_size<T: Simple16>(mut values: &[T]) -> Result<usize, ValueOutOfRange> {
+impl_simple!(u32, 16, ValueOutOfRange, Err(ValueOutOfRange));
+impl_simple!(u16, 16, Infallible, unsafe { unreachable_unchecked() });
+impl_simple!(u8, 14, Infallible, unsafe { unreachable_unchecked() });
+
+pub trait Simple16: Sized {
+    type Error: Into<ValueOutOfRange>;
+    fn consume(values: &[Self]) -> Result<usize, Self::Error>;
+    fn compress(values: &[Self]) -> Result<(u32, usize), Self::Error>;
+}
+
+pub fn calculate_size<T: Simple16>(mut values: &[T]) -> Result<usize, T::Error> {
     profile_fn!(calculate_size);
     let mut size = 0;
     while values.len() > 0 {
@@ -126,7 +133,7 @@ pub fn calculate_size<T: Simple16>(mut values: &[T]) -> Result<usize, ValueOutOf
     Ok(size)
 }
 
-pub fn compress<T: Simple16>(mut values: &[T], out: &mut Vec<u8>) -> Result<(), ValueOutOfRange> {
+pub fn compress<T: Simple16>(mut values: &[T], out: &mut Vec<u8>) -> Result<(), T::Error> {
     profile_fn!(compress);
     while values.len() > 0 {
         let (next, advanced) = T::compress(values)?;
@@ -177,7 +184,10 @@ mod tests {
         );
         let mut out = Vec::new();
         decompress(&bytes, &mut out).unwrap_or_else(|_| todo!());
-        let out: Vec<_> = out.into_iter().map(|o| o.try_into().unwrap_or_else(|_| panic!("round trip failed"))).collect();
+        let out: Vec<_> = out
+            .into_iter()
+            .map(|o| o.try_into().unwrap_or_else(|_| panic!("round trip failed")))
+            .collect();
 
         assert_eq!(data, &out[..data.len()]);
     }
@@ -185,7 +195,9 @@ mod tests {
     #[test]
     fn t1() {
         let i = &[1u32, 5, 18, 99, 2023, 289981, 223389999];
+        round_trip(i);
         let i = &[1u16, 5, 18, 99, 2023, u16::MAX];
+        round_trip(i);
         let i = &[1u8, 5, 18, 99, u8::MAX];
         round_trip(i);
     }
