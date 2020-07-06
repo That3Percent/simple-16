@@ -6,7 +6,7 @@ edition = "2018"
 
 description = "Simple-16 Integer Compression"
 repository = "https://github.com/That3Percent/simple-16"
-keywords = ["simple-family", "binary"]
+keywords = ["simple-family", "binary", "simple16", "simple9"]
 categories = ["compression", "parser-implementations"]
 license = "MIT"
 

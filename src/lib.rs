@@ -1,6 +1,12 @@
-use firestorm::profile_fn;
-use std::convert::{Infallible, TryInto};
-use std::hint::unreachable_unchecked;
+use {
+    firestorm::{profile_fn, profile_method},
+    std::{
+        convert::{Infallible, TryInto},
+        error::Error,
+        fmt,
+        hint::unreachable_unchecked,
+    },
+};
 
 const BITS: [[u32; 28]; 16] = [
     [
@@ -55,53 +61,54 @@ const BITS: [[u32; 28]; 16] = [
 
 const COUNTS: [usize; 16] = [28, 21, 21, 21, 14, 9, 8, 7, 6, 6, 5, 5, 4, 3, 2, 1];
 
-pub struct ValueOutOfRange;
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct ValueOutOfRange(());
 
-macro_rules! impl_simple {
-    ($T:ty, $MAX:expr, $Error:ty, $ErrorCtor:expr) => {
-        impl Simple16 for $T {
-            type Error = $Error;
-            fn compress(values: &[Self]) -> Result<(u32, usize), Self::Error> {
-                for i in 0..($MAX as u32) {
-                    let mut value = i << 28;
-                    let count = COUNTS[i as usize].min(values.len());
+impl Error for ValueOutOfRange {}
 
-                    let mut bits = 0;
-                    let mut j = 0;
-                    while j < count {
-                        if values[j] as u32 >= (1 << (&BITS[i as usize])[j]) {
-                            break;
-                        }
-                        value |= ((values[j] as u32) << bits);
-                        bits += (&BITS[i as usize])[j];
-                        j += 1;
-                    }
-                    if j == count {
-                        return Ok((value, j));
-                    }
-                }
-                $ErrorCtor
+impl fmt::Display for ValueOutOfRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Value out of range for simple16. Maximum value is 268435455"
+        )
+    }
+}
+
+fn pack<T: Simple16>(values: &[T]) -> (u32, usize) {
+    let mut i = 0;
+    'try_again: loop {
+        let mut value = i << 28;
+        let count = COUNTS[i as usize].min(values.len());
+        let mut bits = 0;
+
+        for j in 0..count {
+            let v = values[j].as_();
+            if v >= (1 << (&BITS[i as usize])[j]) {
+                i += 1;
+                continue 'try_again;
             }
+            value |= v << bits;
+            bits += (&BITS[i as usize])[j];
+        }
+        return (value, count);
+    }
+}
 
-            fn consume(values: &[Self]) -> Result<usize, Self::Error> {
-                for i in 0..($MAX as usize) {
-                    let count = COUNTS[i].min(values.len());
+fn consume<T: Simple16>(values: &[T]) -> usize {
+    let mut i = 0;
+    'try_again: loop {
+        // TODO: Get unchecked
+        let count = COUNTS[i].min(values.len());
 
-                    let mut j = 0;
-                    while j < count {
-                        if values[j] as u32 >= (1u32 << (&BITS[i])[j]) {
-                            break;
-                        }
-                        j += 1;
-                    }
-                    if j == count {
-                        return Ok(j);
-                    }
-                }
-                $ErrorCtor
+        for j in 0..count {
+            if values[j].as_() >= (1u32 << (&BITS[i])[j]) {
+                i += 1;
+                continue 'try_again;
             }
         }
-    };
+        return count;
+    }
 }
 
 impl From<Infallible> for ValueOutOfRange {
@@ -111,39 +118,104 @@ impl From<Infallible> for ValueOutOfRange {
     }
 }
 
-impl_simple!(u32, 16, ValueOutOfRange, Err(ValueOutOfRange));
-impl_simple!(u16, 16, Infallible, unsafe { unreachable_unchecked() });
-impl_simple!(u8, 14, Infallible, unsafe { unreachable_unchecked() });
+pub const MAX: u32 = 268435455;
 
-pub trait Simple16: Sized {
-    type Error: Into<ValueOutOfRange>;
-    fn consume(values: &[Self]) -> Result<usize, Self::Error>;
-    fn compress(values: &[Self]) -> Result<(u32, usize), Self::Error>;
+/// This trait is unsafe because if check is wrong then undefined behavior can occur.
+pub unsafe trait Simple16: Sized + Copy {
+    fn check(data: &[Self]) -> Result<(), ValueOutOfRange>;
+    fn as_(self) -> u32;
 }
 
-pub fn calculate_size<T: Simple16>(mut values: &[T]) -> Result<usize, T::Error> {
-    profile_fn!(calculate_size);
-    let mut size = 0;
-    while values.len() > 0 {
-        let advanced = T::consume(values)?;
-        values = &values[advanced..];
-        size += 4;
+unsafe impl Simple16 for u32 {
+    fn check(data: &[Self]) -> Result<(), ValueOutOfRange> {
+        profile_method!(check);
+        for &value in data {
+            if value > MAX {
+                return Err(ValueOutOfRange(()));
+            }
+        }
+        Ok(())
     }
+    #[inline(always)]
+    fn as_(self) -> u32 {
+        self
+    }
+}
+unsafe impl Simple16 for u64 {
+    fn check(data: &[Self]) -> Result<(), ValueOutOfRange> {
+        profile_method!(check);
+        for &value in data {
+            if value > MAX as u64 {
+                return Err(ValueOutOfRange(()));
+            }
+        }
+        Ok(())
+    }
+    #[inline(always)]
+    fn as_(self) -> u32 {
+        self as u32
+    }
+}
 
+unsafe impl Simple16 for u16 {
+    #[inline(always)]
+    fn check(_data: &[Self]) -> Result<(), ValueOutOfRange> {
+        Ok(())
+    }
+    #[inline(always)]
+    fn as_(self) -> u32 {
+        self as u32
+    }
+}
+
+unsafe impl Simple16 for u8 {
+    #[inline(always)]
+    fn check(_data: &[Self]) -> Result<(), ValueOutOfRange> {
+        Ok(())
+    }
+    #[inline(always)]
+    fn as_(self) -> u32 {
+        self as u32
+    }
+}
+
+/// Return the number of bytes that would be used to encode this data set.
+pub fn calculate_size<T: Simple16>(data: &[T]) -> Result<usize, ValueOutOfRange> {
+    profile_fn!(calculate_size);
+    T::check(data)?;
+    let size = unsafe { calculate_size_unchecked(data) };
     Ok(size)
 }
 
-pub fn compress<T: Simple16>(mut values: &[T], out: &mut Vec<u8>) -> Result<(), T::Error> {
-    profile_fn!(compress);
+pub unsafe fn calculate_size_unchecked<T: Simple16>(mut data: &[T]) -> usize {
+    let mut size = 0;
+    while data.len() > 0 {
+        let advanced = consume(data);
+        data = &data[advanced..];
+        size += 4;
+    }
+
+    size
+}
+
+pub unsafe fn compress_unchecked<T: Simple16>(mut values: &[T], out: &mut Vec<u8>) {
     while values.len() > 0 {
-        let (next, advanced) = T::compress(values)?;
+        let (next, advanced) = pack(values);
         values = &values[advanced..];
         out.extend_from_slice(&next.to_le_bytes());
     }
+}
+
+/// Write the data set as little-endian integers in simple 16 format into an array of bytes
+pub fn compress<T: Simple16>(values: &[T], out: &mut Vec<u8>) -> Result<(), ValueOutOfRange> {
+    profile_fn!(compress);
+    T::check(values)?;
+    unsafe { compress_unchecked(values, out) }
 
     Ok(())
 }
 
+/// Read from a byte array into a destination of u32
 pub fn decompress(bytes: &[u8], out: &mut Vec<u32>) -> Result<(), ()> {
     profile_fn!(decompress);
     if bytes.len() % 4 != 0 {
@@ -216,6 +288,20 @@ mod tests {
 
     #[test]
     fn too_large_is_err() {
-        assert!(compress(&[std::u32::MAX], &mut Vec::new()).is_err())
+        assert!(compress(&[u32::MAX], &mut Vec::new()).is_err());
+        assert!(compress(&[MAX + 1], &mut Vec::new()).is_err());
+    }
+
+    #[test]
+    #[ignore = "Takes a while"]
+    fn check_all() {
+        let mut v = Vec::new();
+        for i in 0..MAX {
+            let data = &[i];
+            if compress(&data[..], &mut v).is_err() {
+                panic!("{}", i);
+            }
+            v.clear();
+        }
     }
 }
