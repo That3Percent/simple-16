@@ -355,10 +355,16 @@ mod tests {
     #[ignore = "Takes a while"]
     fn check_all() {
         let mut v = Vec::new();
-        for i in 0..MAX {
+        let mut o = Vec::new();
+        for i in 0..=u32::MAX {
             let data = &[i];
-            if compress(&data[..], &mut v).is_err() {
-                panic!("{}", i);
+            let err = compress(&data[..], &mut v).is_err();
+            assert_eq!(err, i > MAX);
+            if !err {
+                decompress(&v[..], &mut o).unwrap();
+                assert_eq!(o[0], i);
+                // TODO: Check that the others are 0
+                o.clear();
             }
             v.clear();
         }
