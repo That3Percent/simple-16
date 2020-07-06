@@ -8,58 +8,109 @@ use {
     },
 };
 
-const BITS: [[u32; 28]; 16] = [
-    [
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ],
-    [
-        2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        4, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        3, 4, 4, 4, 4, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        5, 5, 5, 5, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        4, 4, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        6, 6, 6, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        5, 5, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        10, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-];
+struct Case {
+    count: usize,
+    bits: [u32; 28],
+}
 
-const COUNTS: [usize; 16] = [28, 21, 21, 21, 14, 9, 8, 7, 6, 6, 5, 5, 4, 3, 2, 1];
+const CASES: [Case; 16] = [
+    Case {
+        count: 28,
+        bits: [
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ],
+    },
+    Case {
+        count: 21,
+        bits: [
+            2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 21,
+        bits: [
+            1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 21,
+        bits: [
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 14,
+        bits: [
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 9,
+        bits: [
+            4, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 8,
+        bits: [
+            3, 4, 4, 4, 4, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 7,
+        bits: [
+            4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 6,
+        bits: [
+            5, 5, 5, 5, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 6,
+        bits: [
+            4, 4, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 5,
+        bits: [
+            6, 6, 6, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 5,
+        bits: [
+            5, 5, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 4,
+        bits: [
+            7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 3,
+        bits: [
+            10, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 2,
+        bits: [
+            14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+    Case {
+        count: 1,
+        bits: [
+            28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    },
+];
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct ValueOutOfRange(());
@@ -76,38 +127,44 @@ impl fmt::Display for ValueOutOfRange {
 }
 
 fn pack<T: Simple16>(values: &[T]) -> (u32, usize) {
-    let mut i = 0;
-    'try_again: loop {
-        let mut value = i << 28;
-        let count = COUNTS[i as usize].min(values.len());
-        let mut bits = 0;
-
-        for j in 0..count {
-            let v = values[j].as_();
-            if v >= (1 << (&BITS[i as usize])[j]) {
-                i += 1;
-                continue 'try_again;
+    unsafe {
+        let mut i = 0;
+        'try_again: loop {
+            let mut value = i << 28;
+            let Case { mut count, bits } = CASES.get_unchecked(i as usize);
+            count = count.min(values.len());
+            let mut packed = 0;
+            for j in 0..count {
+                let v = values.get_unchecked(j).as_();
+                let bits_j = *bits.get_unchecked(j);
+                if v >= 1 << bits_j {
+                    i += 1;
+                    continue 'try_again;
+                }
+                value |= v << packed;
+                packed += bits_j;
             }
-            value |= v << bits;
-            bits += (&BITS[i as usize])[j];
+            return (value, count);
         }
-        return (value, count);
     }
 }
 
 fn consume<T: Simple16>(values: &[T]) -> usize {
-    let mut i = 0;
-    'try_again: loop {
-        // TODO: Get unchecked
-        let count = COUNTS[i].min(values.len());
+    unsafe {
+        let mut i = 0;
+        'try_again: loop {
+            let Case { mut count, bits } = CASES.get_unchecked(i as usize);
+            count = count.min(values.len());
 
-        for j in 0..count {
-            if values[j].as_() >= (1u32 << (&BITS[i])[j]) {
-                i += 1;
-                continue 'try_again;
+            for j in 0..count {
+                let values_j = values.get_unchecked(j).as_();
+                if values_j >= (1u32 << bits.get_unchecked(j)) {
+                    i += 1;
+                    continue 'try_again;
+                }
             }
+            return count;
         }
-        return count;
     }
 }
 
@@ -228,13 +285,15 @@ pub fn decompress(bytes: &[u8], out: &mut Vec<u32>) -> Result<(), ()> {
         let slice = &bytes[start..offset];
         let next = u32::from_le_bytes(slice.try_into().unwrap());
         let num_idx = (next >> 28) as usize;
-        let num = COUNTS[num_idx];
+        let Case { count, bits } = unsafe { CASES.get_unchecked(num_idx) };
+        let count = *count;
         let mut j = 0;
-        let mut bits = 0;
-        while j < num {
-            let value = (next >> bits) & (0xffffffff >> (32 - BITS[num_idx][j]));
+        let mut unpacked = 0;
+        while j < count {
+            let bits_j = unsafe { bits.get_unchecked(j) };
+            let value = (next >> unpacked) & (0xffffffff >> (32 - bits_j));
             out.push(value);
-            bits += BITS[num_idx][j];
+            unpacked += bits_j;
             j += 1;
         }
     }
